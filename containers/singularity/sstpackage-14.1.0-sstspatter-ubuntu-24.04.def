@@ -1,0 +1,68 @@
+Bootstrap: docker
+From: ubuntu:{{ UBUNTU_VERSION }}
+
+%arguments
+  UBUNTU_VERSION=24.04
+  SST_VERSION=14.1.0
+
+%setup
+  mkdir -p ${APPTAINER_ROOTFS}/usr/local/sstcore-{{ SST_VERSION }}/src
+  mkdir -p ${APPTAINER_ROOTFS}/usr/local/sstelements-{{ SST_VERSION }}/src
+  mkdir -p ${APPTAINER_ROOTFS}/usr/local/packages/spatter/src
+  mkdir -p ${APPTAINER_ROOTFS}/usr/local/packages/sst-spatter/src
+
+%files
+  sstcore-{{ SST_VERSION }}.tar.gz /usr/local/sstcore-{{ SST_VERSION }}/src
+  sstelements-{{ SST_VERSION }}.tar.gz /usr/local/sstelements-{{ SST_VERSION }}/src
+
+%environment
+  PATH=/usr/local/sstcore-{{ SST_VERSION }}/bin:$PATH
+  PATH=/usr/local/sstelements-{{ SST_VERSION }}/bin:$PATH
+
+%runscript
+
+%post
+  apt-get update && apt-get install -y \
+    build-essential \
+    autotools-dev \
+    openmpi-bin \
+    libopenmpi-dev \
+    python3 \
+    python3-dev \
+    python3-pip \
+    doxygen \
+    libjpeg-dev \
+    zlib1g-dev \
+    valgrind \
+    gawk \
+    wget \
+    cmake \
+    libtool-bin \
+    libltdl-dev
+
+  apt-get clean && rm -rf /var/lib/apt/lists/*
+
+  cd /usr/local/sstcore-{{ SST_VERSION }}/src
+  tar --no-same-owner -xvzf sstcore-{{ SST_VERSION }}.tar.gz --strip-components=1
+  ./configure --prefix=/usr/local/sstcore-{{ SST_VERSION }}; make -j4 all; make install
+  rm -f /usr/local/sstcore-{{ SST_VERSION }}/src/sstcore-{{ SST_VERSION }}.tar.gz
+
+  cd /usr/local/sstelements-{{ SST_VERSION }}/src
+  tar --no-same-owner -xvzf sstelements-{{ SST_VERSION }}.tar.gz --strip-components=1
+  ./configure --prefix=/usr/local/sstelements-{{ SST_VERSION }} --with-sst-core=/usr/local/sstcore-{{ SST_VERSION }}; make -j4 all; make install
+  rm -f /usr/local/sstelements-{{ SST_VERSION }}/src/sstelements-{{ SST_VERSION }}.tar.gz
+
+  cd /usr/local/packages/spatter/
+  wget https://github.com/hpcgarage/spatter/archive/spatter-devel.tar.gz -O spatter.tar.gz
+  tar --no-same-owner -xvzf spatter.tar.gz --strip-components=1
+  cmake -B build -S .; make -j4 -C build
+  rm -f /usr/local/packages/spatter/spatter.tar.gz
+
+  cd /usr/local/packages/sst-spatter/src
+  wget https://github.com/hpcgarage/sst-spatter/archive/master.tar.gz -O sst-spatter.tar.gz
+  tar --no-same-owner -xvzf sst-spatter.tar.gz --strip-components=1
+  ./autogen.sh; ./configure --prefix=/usr/local/packages/sst-spatter --with-sst-core=/usr/local/sstcore-{{ SST_VERSION }} --with-spatter=/usr/local/packages/spatter/build; make -j4 all; make install
+  rm -f /usr/local/packages/sst-spatter/src/sst-spatter.tar.gz
+
+%help
+  SST {{ SST_VERSION }}-Ubuntu {{ UBUNTU_VERSION }}: Creates a basic SST Core image with the necessary software dependencies
