@@ -1,0 +1,76 @@
+Bootstrap: yum
+OSVersion: {{ CENTOS_VERSION }}
+MirrorURL: http://packages.oit.ncsu.edu/centos-stream/%{OSVersion}-stream/BaseOS/x86_64/os/
+Include: dnf
+
+%arguments
+  CENTOS_VERSION=9
+  SST_VERSION=14.1.0
+
+%setup
+  mkdir -p ${APPTAINER_ROOTFS}/usr/local/sstcore-{{ SST_VERSION }}/src
+  mkdir -p ${APPTAINER_ROOTFS}/usr/local/sstelements-{{ SST_VERSION }}/src
+  mkdir -p ${APPTAINER_ROOTFS}/usr/local/packages/spatter/src
+  mkdir -p ${APPTAINER_ROOTFS}/usr/local/packages/sst-spatter/src
+
+%files
+  sstcore-{{ SST_VERSION }}.tar.gz /usr/local/sstcore-{{ SST_VERSION }}/src
+  sstelements-{{ SST_VERSION }}.tar.gz /usr/local/sstelements-{{ SST_VERSION }}/src
+
+%environment
+  PATH=/usr/local/sstcore-{{ SST_VERSION }}/bin:$PATH
+  PATH=/usr/local/sstelements-{{ SST_VERSION }}/bin:$PATH
+
+%runscript
+
+%post
+  dnf clean all
+  dnf update -y
+  dnf install -y dnf-plugins-core
+  dnf install -y epel-release
+  dnf install -y 'dnf-command(config-manager)'
+  dnf config-manager --set-enabled crb
+  dnf group install -y "Development Tools"
+  dnf install -y --nogpgcheck \
+    python3 \
+    python3-devel \
+    python3-pip \
+    doxygen \
+    zlib-devel \
+    valgrind \
+    wget \
+    cmake \
+    libtool-ltdl \
+    libtool-ltdl-devel
+
+  dnf clean all
+
+  python3 -m pip install --upgrade pip --find-links=. --ignore-installed \
+    pandas
+
+  set -e
+
+  cd /usr/local/sstcore-{{ SST_VERSION }}/src
+  tar --no-same-owner -xvzf sstcore-{{ SST_VERSION }}.tar.gz --strip-components=1
+  ./configure --prefix=/usr/local/sstcore-{{ SST_VERSION }} --disable-mpi; make -j4 all; make install
+  rm -f /usr/local/sstcore-{{ SST_VERSION }}/src/sstcore-{{ SST_VERSION }}.tar.gz
+
+  cd /usr/local/sstelements-{{ SST_VERSION }}/src
+  tar --no-same-owner -xvzf sstelements-{{ SST_VERSION }}.tar.gz --strip-components=1
+  ./configure --prefix=/usr/local/sstelements-{{ SST_VERSION }} --with-sst-core=/usr/local/sstcore-{{ SST_VERSION }}; make -j4 all; make install
+  rm -f /usr/local/sstelements-{{ SST_VERSION }}/src/sstelements-{{ SST_VERSION }}.tar.gz
+
+  cd /usr/local/packages/spatter/
+  wget https://github.com/hpcgarage/spatter/archive/spatter-devel.tar.gz -O spatter.tar.gz
+  tar --no-same-owner -xvzf spatter.tar.gz --strip-components=1
+  cmake -B build -S .; make -j4 -C build
+  rm -f /usr/local/packages/spatter/spatter.tar.gz
+
+  cd /usr/local/packages/sst-spatter/src
+  wget https://github.com/hpcgarage/sst-spatter/archive/master.tar.gz -O sst-spatter.tar.gz
+  tar --no-same-owner -xvzf sst-spatter.tar.gz --strip-components=1
+  ./autogen.sh; ./configure --prefix=/usr/local/packages/sst-spatter --with-sst-core=/usr/local/sstcore-{{ SST_VERSION }} --with-spatter=/usr/local/packages/spatter/build; make -j4 all; make install
+  rm -f /usr/local/packages/sst-spatter/src/sst-spatter.tar.gz
+
+%help
+  SST {{ SST_VERSION }}-Centos {{ CENTOS_VERSION }}: Creates an SST Core + SST Elements + SST Spatter image with the necessary software dependencies
