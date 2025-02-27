@@ -65,4 +65,4 @@ From: ubuntu:{{ UBUNTU_VERSION }}
   rm -f /usr/local/packages/sst-spatter/src/sst-spatter.tar.gz
 
 %help
-  SST {{ SST_VERSION }}-Ubuntu {{ UBUNTU_VERSION }}: Creates a basic SST Core image with the necessary software dependencies
+  SST {{ SST_VERSION }}-Ubuntu {{ UBUNTU_VERSION }}: Creates an SST Core + SST Elements + SST Spatter image with the necessary software dependencies
