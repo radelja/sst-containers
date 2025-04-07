@@ -52,16 +52,17 @@ From: ubuntu:{{ UBUNTU_VERSION }}
   ./configure --prefix=/usr/local/sstelements-{{ SST_VERSION }} --with-sst-core=/usr/local/sstcore-{{ SST_VERSION }}; make -j4 all; make install
   rm -f /usr/local/sstelements-{{ SST_VERSION }}/src/sstelements-{{ SST_VERSION }}.tar.gz
 
-  cd /usr/local/packages/spatter/
+  cd /usr/local/packages/spatter/src
   wget https://github.com/hpcgarage/spatter/archive/spatter-devel.tar.gz -O spatter.tar.gz
   tar --no-same-owner -xvzf spatter.tar.gz --strip-components=1
-  cmake -B build -S .; make -j4 -C build
-  rm -f /usr/local/packages/spatter/spatter.tar.gz
+  cmake -DCMAKE_INSTALL_PREFIX=/usr/local/packages/spatter -B build_serial -S .
+  make -j4 all -C build_serial; make install -C build_serial
+  rm -f /usr/local/packages/spatter/src/spatter.tar.gz
 
   cd /usr/local/packages/sst-spatter/src
   wget https://github.com/hpcgarage/sst-spatter/archive/master.tar.gz -O sst-spatter.tar.gz
   tar --no-same-owner -xvzf sst-spatter.tar.gz --strip-components=1
-  ./autogen.sh; ./configure --prefix=/usr/local/packages/sst-spatter --with-sst-core=/usr/local/sstcore-{{ SST_VERSION }} --with-spatter=/usr/local/packages/spatter/build; make -j4 all; make install
+  ./autogen.sh; ./configure --prefix=/usr/local/packages/sst-spatter --with-sst-core=/usr/local/sstcore-{{ SST_VERSION }} --with-spatter=/usr/local/packages/spatter; make -j4 all; make install
   rm -f /usr/local/packages/sst-spatter/src/sst-spatter.tar.gz
 
 %help
