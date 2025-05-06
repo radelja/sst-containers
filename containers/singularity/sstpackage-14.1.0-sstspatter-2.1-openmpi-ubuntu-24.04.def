@@ -1,11 +1,10 @@
-Bootstrap: yum
-OSVersion: {{ CENTOS_VERSION }}
-MirrorURL: http://packages.oit.ncsu.edu/centos-stream/%{OSVersion}-stream/BaseOS/x86_64/os/
-Include: dnf
+Bootstrap: docker
+From: ubuntu:{{ UBUNTU_VERSION }}
 
 %arguments
-  CENTOS_VERSION=9
+  UBUNTU_VERSION=24.04
   SST_VERSION=14.1.0
+  SPATTER_VERSION=2.1
 
 %setup
   mkdir -p ${APPTAINER_ROOTFS}/usr/local/sstcore-{{ SST_VERSION }}/src
@@ -24,35 +23,29 @@ Include: dnf
 %runscript
 
 %post
-  dnf clean all
-  dnf update -y
-  dnf install -y dnf-plugins-core
-  dnf install -y epel-release
-  dnf install -y 'dnf-command(config-manager)'
-  dnf config-manager --set-enabled crb
-  dnf group install -y "Development Tools"
-  dnf install -y --nogpgcheck \
+  apt-get update && apt-get install -y \
+    build-essential \
+    autotools-dev \
+    openmpi-bin \
+    libopenmpi-dev \
     python3 \
-    python3-devel \
-    python3-pip \
+    python3-dev \
+    python3-pandas \
     doxygen \
-    zlib-devel \
+    libjpeg-dev \
+    zlib1g-dev \
     valgrind \
+    gawk \
     wget \
     cmake \
-    libtool-ltdl \
-    libtool-ltdl-devel
+    libtool-bin \
+    libltdl-dev
 
-  dnf clean all
-
-  python3 -m pip install --upgrade pip --find-links=. --ignore-installed \
-    pandas
-
-  set -e
+  apt-get clean && rm -rf /var/lib/apt/lists/*
 
   cd /usr/local/sstcore-{{ SST_VERSION }}/src
   tar --no-same-owner -xvzf sstcore-{{ SST_VERSION }}.tar.gz --strip-components=1
-  ./configure --prefix=/usr/local/sstcore-{{ SST_VERSION }} --disable-mpi; make -j4 all; make install
+  ./configure --prefix=/usr/local/sstcore-{{ SST_VERSION }}; make -j4 all; make install
   rm -f /usr/local/sstcore-{{ SST_VERSION }}/src/sstcore-{{ SST_VERSION }}.tar.gz
 
   cd /usr/local/sstelements-{{ SST_VERSION }}/src
@@ -61,7 +54,7 @@ Include: dnf
   rm -f /usr/local/sstelements-{{ SST_VERSION }}/src/sstelements-{{ SST_VERSION }}.tar.gz
 
   cd /usr/local/packages/spatter/src
-  wget https://github.com/hpcgarage/spatter/archive/spatter-devel.tar.gz -O spatter.tar.gz
+  wget https://github.com/hpcgarage/spatter/archive/refs/tags/v{{ SPATTER_VERSION }}.tar.gz -O spatter.tar.gz
   tar --no-same-owner -xvzf spatter.tar.gz --strip-components=1
   cmake -DCMAKE_INSTALL_PREFIX=/usr/local/packages/spatter -B build_serial -S .
   make -j4 all -C build_serial; make install -C build_serial
@@ -74,4 +67,4 @@ Include: dnf
   rm -f /usr/local/packages/sst-spatter/src/sst-spatter.tar.gz
 
 %help
-  SST {{ SST_VERSION }}-Centos {{ CENTOS_VERSION }}: Creates an SST Core + SST Elements + SST Spatter image with the necessary software dependencies
+  SST {{ SST_VERSION }}-Ubuntu {{ UBUNTU_VERSION }}: Creates an SST Core + SST Elements + SST Spatter image with the necessary software dependencies
